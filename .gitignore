@@ -164,3 +164,8 @@ gen
 *.3dm
 *.max
 
+# Zeiss Image file
+*.lsm
+
+# Executable
+*.exe
