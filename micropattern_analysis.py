@@ -11,6 +11,11 @@ import matplotlib.ticker as ticker
 import seaborn as sns
 from argparse import ArgumentParser
 from time import time
+from matplotlib import rcParams
+
+rcParams['pdf.fonttype'] = 42
+rcParams['ps.fonttype'] = 42
+width, height = plt.rcParams.get('figure.figsize')
 
 
 def gather_files(path):
@@ -95,22 +100,57 @@ def scale_distances(df, mean_res):
     return df
 
 
-def smooth_distances(df, channel_names):
+def smooth_distances(df, channel_names, sigma=4):
     for channel in channel_names:
-        df[channel] = gaussian_filter(df[channel], 4)
+        df[channel] = gaussian_filter(df[channel], sigma)
+    return df
+
+
+def normalize_distances(df, channel_names):
+    for channel in channel_names:
+        df[channel] = df[channel] / np.linalg.norm(df[channel])
     return df
 
 
 def plot_data(img, df, channel_names, file_path, mean_res, save=False):
-    ticks = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x * mean_res))
+    ticks = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(round(x * mean_res)))
 
     (fig, ax) = plt.subplots(len(channel_names), 2, figsize=(10, 15))
     for i in range(len(ax)):
-        ax[i][0].imshow(img[i], cmap="twilight")
+        im = ax[i][0].imshow(img[i], cmap="twilight")
         ax[i][0].set_ylabel(channel_names[i])
         ax[i][0].xaxis.set_major_formatter(ticks)
         ax[i][0].yaxis.set_major_formatter(ticks)
-        sns.lineplot(df, x="Distances", y=channel_names[i], hue="Culture Condition", ax=ax[i][1])
+        pos = fig.add_axes([0.93, 0.1, 0.02, 0.35])
+        fig.colorbar(im, cax=pos)
+        sns.lineplot(df, x="Distances", y=channel_names[i], ax=ax[i][1])
+        ax[i][1].set_ylabel("")
+        ax[i][1].set_xlabel("")
+    fig.supxlabel("Distance [µm]")
+    if save:
+        plt.savefig(f"{file_path}_plot.png")
+    else:
+        plt.show()
+        plt.close("all")
+
+
+def plot_merge_data(images, df, channel_names, file_path, mean_res, save=False):
+    ticks = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(round(x * mean_res)))
+
+    (fig, axes) = plt.subplots(len(channel_names), len(images) + 1, figsize=(20, 15))
+    for i in range(len(axes)):
+        for ax, key in zip(axes[i], images.keys()):
+            img = images.get(key)[i]
+            im = ax.imshow(img, cmap="twilight")
+            ax.set_ylabel(channel_names[i])
+            ax.xaxis.set_major_formatter(ticks)
+            ax.yaxis.set_major_formatter(ticks)
+            ax.set_title(key)
+            pos = fig.add_axes([0.93, 0.1, 0.02, 0.35])
+            fig.colorbar(im, cax=pos)
+        sns.lineplot(df, x="Distances", y=channel_names[i], hue="Culture Condition", ax=axes[i][-1])
+        axes[i][-1].set_ylabel("")
+        axes[i][-1].set_xlabel("")
     fig.supxlabel("Distance [µm]")
     if save:
         plt.savefig(f"{file_path}_plot.png")
@@ -128,28 +168,52 @@ def main():
     parser.add_argument("-v", "--verbose", help="output verbosity", action="store_true")
     parser.add_argument("--debug", help="for debug purpose", action="store_true")
     parser.add_argument("-s", "--save-data", help="store data in csv", action="store_true")
-    parser.add_argument("-p", "--save-plot", help="save plot as a png", action="store_true")
+    parser.add_argument("-p", "--save-plot",
+                        help="save plot as a png, after program is executed it is presented which images"
+                             " should be plotted",
+                        action="store_true")
     parser.add_argument("-c", "--channel-names", help="provide list of channel names",
                         nargs="+")
+    parser.add_argument("--normalize", help="normalizes data", action="store_true")
+    parser.add_argument("--smoothing-sigma", help="specify gaussian sigma for smoothing", type=float)
     # add argument to specify which images should be plotted
     # add argument to save plots as pdf
 
     args = parser.parse_args(sys.argv[1:])
 
     frames = []
-    images = []
+    images = {}
     file_paths = []
     time_points = []
     t0 = time()
     time_points.append(t0)
 
+    plot_files = []
+
+    if args.save_plot:
+        print()
+        print("Specify which files should be included to be saved as plots:")
+        print()
+        files = [file for file in gather_files(args.pathfile)]
+        for i in range(len(files)):
+            print(f"({i + 1})\t{files[i]}")
+        plots = input("Select files to be saved as plots (separate with empty space ' '): ")
+        for i in map(int, plots.split(" ")):
+            plot_files.append(files[i - 1])
+
     for file in gather_files(args.pathfile):
         try:
             img = iio.imread(file)
-            images.append(img)
-            file_paths.append(file)
+
             if len(img.shape) == 4:
                 img = maximise_img_channels(img)
+
+            if len(file_paths) == 0:
+                images.update({os.path.basename(os.path.dirname(file)): img})
+            elif os.path.dirname(file) != os.path.dirname(file_paths[-1]):
+                images.update({os.path.basename(os.path.dirname(file)): img})
+
+            file_paths.append(file)
 
             if args.dapi:
                 dapi_channel_number = args.dapi - 1
@@ -184,15 +248,24 @@ def main():
             elif img_meta["ScanInformation"]["SampleSpacing"]:
                 mean_res = img_meta["ScanInformation"]["SampleSpacing"]
             else:
-                mean_res = 0.69
+                mean_res = 1
 
             df_mini = group_distances(df_mini, channel_names)
             df_mini = scale_distances(df_mini, mean_res)
-            df_mini = smooth_distances(df_mini, channel_names)
+            if args.normalize:
+                df_mini = normalize_distances(df_mini, channel_names)
+            if args.smoothing_sigma:
+                df_mini = smooth_distances(df_mini, channel_names, sigma=args.smoothing_sigma)
+            else:
+                df_mini = smooth_distances(df_mini, channel_names)
             df_mini["Culture Condition"] = np.repeat(os.path.basename(os.path.dirname(file)),
                                                      df_mini.shape[0])
 
-            plot_data(img, df_mini, channel_names[:-1], file, mean_res, save=args.save_plot)
+            if args.save_plot:
+                if file in plot_files:
+                    plot_data(img, df_mini, channel_names[:-1], file, mean_res, save=args.save_plot)
+            else:
+                plot_data(img, df_mini, channel_names[:-1], file, mean_res)
 
             frames.append(df_mini)
 
@@ -202,9 +275,9 @@ def main():
             print("[-] Folder contained non-readable image/file")
     if args.debug:
         df = pd.concat(frames)
-        plot_data(images[0], df,
-                  ["PAX6", "SOX10", "ISL12"],
-                  "merge", 0.6, save=args.save_plot)
+        plot_merge_data(images, df,
+                        args.channel_names[:-1],
+                        "merged", 0.69, save=args.save_plot)
     time_points.append(time() - t0)
     print(f"[+] Finished process in {round(time_points[-1])} s") if args.verbose else ""
 
