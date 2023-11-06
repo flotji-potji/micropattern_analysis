@@ -169,3 +169,6 @@ gen
 
 # Executable
 *.exe
+
+# Comma Seperated Value files
+*.csv

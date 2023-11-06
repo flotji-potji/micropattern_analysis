@@ -40,6 +40,7 @@ def create_img_mask(img, dapi_img):
     dapi_img_mask = dapi_img > threshold_triangle(dapi_img)
     seed = np.copy(dapi_img_mask)
     seed[1:-1, 1:-1] = dapi_img_mask.max()
+    dapi_img_mask = morph.remove_small_objects(dapi_img_mask, 200)
     dapi_img_mask = morph.reconstruction(seed, dapi_img_mask, method="erosion")
     return dapi_img_mask
 
@@ -196,7 +197,7 @@ def main():
         print()
         files = [file for file in gather_files(args.pathfile)]
         for i in range(len(files)):
-            print(f"({i + 1})\t{files[i]}")
+            print(f"({i + 1})\t\t{files[i]}")
         plots = input("Select files to be saved as plots (separate with empty space ' '): ")
         for i in map(int, plots.split(" ")):
             plot_files.append(files[i - 1])
