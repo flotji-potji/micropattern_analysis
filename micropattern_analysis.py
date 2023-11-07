@@ -91,7 +91,7 @@ def get_channel_values_of_cords(img, dapi_channel_number):
 
 
 def group_distances(df, channel_names):
-    distance_intensities = df[df[channel_names[0]] > 0].groupby("Distances", sort=True).mean()
+    distance_intensities = df[df[channel_names[-1]] > 0].groupby("Distances", sort=True).mean()
     distance_intensities.reset_index(inplace=True)
     return distance_intensities
 
