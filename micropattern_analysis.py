@@ -4,7 +4,8 @@ from scipy.ndimage import gaussian_filter
 from skimage.filters import threshold_triangle
 from skimage.measure import regionprops
 import skimage.morphology as morph
-import os, sys
+import os
+import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -33,11 +34,11 @@ def maximise_img_channels(img):
     return np.sum(img, axis=0)
 
 
-def create_img_mask(img, dapi_img):
+def create_img_mask(img, dapi_img, threshold_fun):
     if len(img.shape) == 2:
         print("[-] Selected single channel image")
         return
-    dapi_img_mask = dapi_img > threshold_triangle(dapi_img)
+    dapi_img_mask = dapi_img > threshold_fun(dapi_img)
     seed = np.copy(dapi_img_mask)
     seed[1:-1, 1:-1] = dapi_img_mask.max()
     dapi_img_mask = morph.remove_small_objects(dapi_img_mask, 200)
@@ -222,7 +223,7 @@ def main():
                 dapi_channel_number = img.shape[0] - 1
 
             dapi_img = img[dapi_channel_number]
-            img_mask = create_img_mask(img, dapi_img)
+            img_mask = create_img_mask(img, dapi_img, threshold_triangle)
             applied_img_mask = apply_img_mask(img, img_mask)
             center_of_mass = get_center_of_mass(img_mask, dapi_img)
             cords = expand_coordinate_matrix(dapi_img)
