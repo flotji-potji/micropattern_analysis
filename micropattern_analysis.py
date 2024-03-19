@@ -19,15 +19,16 @@ rcParams['ps.fonttype'] = 42
 width, height = plt.rcParams.get('figure.figsize')
 
 
-def gather_files(path):
-    if os.path.isfile(path):
-        yield path
-    elif os.path.isdir(path):
-        for root, _, files in os.walk(path):
-            for file in files:
-                yield os.path.join(root, file)
-    else:
-        print("[-] No such file or directory")
+def gather_files(paths):
+    for pa in paths:
+        if os.path.isfile(pa):
+            yield pa
+        elif os.path.isdir(pa):
+            for root, _, files in os.walk(pa):
+                for file in files:
+                    yield os.path.join(root, file)
+        else:
+            print("[-] No such file or directory")
 
 
 def maximise_img_channels(img):
