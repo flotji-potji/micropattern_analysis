@@ -31,8 +31,9 @@ def gather_files(paths):
             print("[-] No such file or directory")
 
 
-def maximise_img_channels(img):
-    return np.sum(img, axis=0)
+def maximise_img_channels(img, bits=8):
+    bits = (2**bits) - 1
+    return np.max(img, axis=0) / bits
 
 
 def create_img_mask(img, dapi_img, threshold_fun):
@@ -109,12 +110,6 @@ def smooth_distances(df, channel_names, sigma=4):
     return df
 
 
-def normalize_distances(df, channel_names):
-    for channel in channel_names:
-        df[channel] = df[channel] / np.linalg.norm(df[channel])
-    return df
-
-
 def plot_data(img, df, channel_names, file_path, mean_res, save=False):
     ticks = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(round(x * mean_res)))
 
@@ -161,7 +156,7 @@ def plot_merge_data(images, df, channel_names, file_path, mean_res, save=False):
         plt.show()
         plt.close("all")
 
-
+# TODO: remove or improve function
 def main():
     parser = ArgumentParser()
     parser.add_argument("pathfile", help="specify file or filepath...")
