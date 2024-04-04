@@ -31,9 +31,25 @@ def gather_files(paths):
             print("[-] No such file or directory")
 
 
-def maximise_img_channels(img, bits=8):
-    bits = (2**bits) - 1
-    return np.max(img, axis=0) / bits
+def glue_files_and_images(paths):
+    res_dir = {}
+    for file in gather_files(paths):
+        img = iio.imread(file)
+        res_dir.update({file: img})
+    return res_dir
+
+
+def maximise_img_channels(img):
+    return np.max(img, axis=0)
+
+
+def normalize_image(img, bits=8):
+    bits = (2 ** bits) - 1
+    return img / bits
+
+
+def maximise_and_normalize(img, bits=8):
+    return normalize_image(maximise_img_channels(img), bits)
 
 
 def create_img_mask(img, dapi_img, threshold_fun):
@@ -156,6 +172,7 @@ def plot_merge_data(images, df, channel_names, file_path, mean_res, save=False):
         plt.show()
         plt.close("all")
 
+
 # TODO: remove or improve function
 def main():
     parser = ArgumentParser()
@@ -250,8 +267,6 @@ def main():
 
             df_mini = group_distances(df_mini, channel_names)
             df_mini = scale_distances(df_mini, mean_res)
-            if args.normalize:
-                df_mini = normalize_distances(df_mini, channel_names)
             if args.smoothing_sigma:
                 df_mini = smooth_distances(df_mini, channel_names, sigma=args.smoothing_sigma)
             else:
