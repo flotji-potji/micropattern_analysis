@@ -31,7 +31,7 @@ def gather_files(paths):
             print("[-] No such file or directory")
 
 
-def glue_files_and_images(paths):
+def get_files_and_images(paths):
     res_dir = {}
     for file in gather_files(paths):
         img = iio.imread(file)
