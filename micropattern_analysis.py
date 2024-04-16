@@ -20,6 +20,12 @@ width, height = plt.rcParams.get('figure.figsize')
 
 
 def gather_files(paths):
+    """
+    Implicit function: returns all files of given path in one dimension (flat hierarchy)
+
+    :param paths:
+    :return:
+    """
     for pa in paths:
         if os.path.isfile(pa):
             yield pa
@@ -32,6 +38,12 @@ def gather_files(paths):
 
 
 def get_files_and_images(paths):
+    """
+    Implicit function: returns dictionary of file names as keys and images (numpy matrix) of given path
+
+    :param paths:
+    :return:
+    """
     res_dir = {}
     for file in gather_files(paths):
         img = iio.imread(file)
@@ -40,21 +52,43 @@ def get_files_and_images(paths):
 
 
 def maximise_img_channels(img):
+    """
+    Explicit function: returns image with "brightest"/maximum pixel values
+    Implicit use: effectively can transform z-stack image into single stack
+
+    :param img:
+    :return:
+    """
     return np.max(img, axis=0)
 
 
 def normalize_image(img, bits=8):
+    """
+    Explicit function: normalizes pixel values (ranging from 0 to 1)
+
+    :param img:
+    :param bits:
+    :return:
+    """
     bits = (2 ** bits) - 1
     return img / bits
 
 
 def maximise_and_normalize(img, bits=8):
+    """
+    Explicit function: uses first maximise_img_channels() and then normalizes_image()
+
+    :param img:
+    :param bits:
+    :return:
+    """
     return normalize_image(maximise_img_channels(img), bits)
 
 
 def create_solid_img_mask(img, dapi_img, threshold_fun):
     """
-    Creates a solid image mask (without hole) from image with given function.
+    Implicit function: Creates a solid image mask (without holes and removes small objects) from
+    image with given function
 
     :param img:
     :param dapi_img:
@@ -72,28 +106,89 @@ def create_solid_img_mask(img, dapi_img, threshold_fun):
     return dapi_img_mask
 
 
-def create_dapi_img_mask_multiotsu(
+def create_img_mask_multiotsu(
         img,
         dapi_img_num,
         num_classes=4,
         threshold_index=1
 ):
+    """
+    Explicit function: returns a binary image mask of the given DAPI channel by using Multi-Otsu
+    algorithm
+
+    :param img:
+    :param dapi_img_num:
+    :param num_classes:
+    :param threshold_index:
+    :return:
+    """
     thresholds = filters.threshold_multiotsu(img[dapi_img_num], classes=num_classes)
     dapi_threshold = thresholds[threshold_index]
     return img[dapi_img_num] > dapi_threshold
 
 
-def apply_multiotsu_to_dapi(
+def apply_multiotsu_to_image(
         img,
         dapi_img_num,
         num_classes=4,
         threshold_index=1
 ):
-    img[dapi_img_num] = create_dapi_img_mask_multiotsu(img, dapi_img_num, num_classes, threshold_index)
+    """
+    Implicit function: uses create_img_mask_multiotsu() to apply binary mask to image
+
+    :param img:
+    :param dapi_img_num:
+    :param num_classes:
+    :param threshold_index:
+    :return:
+    """
+    img = apply_img_mask(
+        img,
+        create_img_mask_multiotsu(
+            img,
+            dapi_img_num,
+            num_classes,
+            threshold_index
+        )
+    )
+    return img
+
+
+def apply_multiotsu_to_channel(
+        img,
+        channel_num,
+        num_classes=4,
+        threshold_index=1
+):
+    """
+    Implicit function: uses create_img_mask_multiotsu() to apply binary mask to given channel in image
+
+    :param img:
+    :param channel_num:
+    :param num_classes:
+    :param threshold_index:
+    :return:
+    """
+    img[channel_num] = apply_img_mask(
+        img[channel_num],
+        create_img_mask_multiotsu(
+            img,
+            channel_num,
+            num_classes,
+            threshold_index
+        )
+    )
     return img
 
 
 def apply_img_mask(img, img_mask):
+    """
+    Explicit function: returns image with applied binary mask
+
+    :param img:
+    :param img_mask:
+    :return:
+    """
     return img * img_mask
 
 
