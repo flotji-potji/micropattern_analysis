@@ -1,7 +1,7 @@
 import imageio.v3 as iio
 import numpy as np
 from scipy.ndimage import gaussian_filter
-from skimage.filters import threshold_triangle
+import skimage.filters as filters
 from skimage.measure import regionprops
 import skimage.morphology as morph
 import os
@@ -52,7 +52,15 @@ def maximise_and_normalize(img, bits=8):
     return normalize_image(maximise_img_channels(img), bits)
 
 
-def create_img_mask(img, dapi_img, threshold_fun):
+def create_solid_img_mask(img, dapi_img, threshold_fun):
+    """
+    Creates a solid image mask (without hole) from image with given function.
+
+    :param img:
+    :param dapi_img:
+    :param threshold_fun:
+    :return:
+    """
     if len(img.shape) == 2:
         print("[-] Selected single channel image")
         return
@@ -64,12 +72,19 @@ def create_img_mask(img, dapi_img, threshold_fun):
     return dapi_img_mask
 
 
+def create_dapi_img_mask_multiotsu(
+        img,
+        dapi_img_num,
+        num_classes=4,
+        threshold_index=1
+):
+    thresholds = filters.threshold_multiotsu(img[dapi_img_num], classes=num_classes)
+    dapi_threshold = thresholds[threshold_index]
+    return img[dapi_img_num] > dapi_threshold
+
+
 def apply_img_mask(img, img_mask):
-    img_channels = []
-    for channel in img:
-        img_channels.append(channel * img_mask)
-    img_channels = np.array(img_channels)
-    return img_channels
+    return img * img_mask
 
 
 def get_center_of_mass(img_mask, dapi_img):
@@ -236,7 +251,7 @@ def main():
                 dapi_channel_number = img.shape[0] - 1
 
             dapi_img = img[dapi_channel_number]
-            img_mask = create_img_mask(img, dapi_img, threshold_triangle)
+            img_mask = create_solid_img_mask(img, dapi_img, filters.threshold_triangle)
             applied_img_mask = apply_img_mask(img, img_mask)
             center_of_mass = get_center_of_mass(img_mask, dapi_img)
             cords = expand_coordinate_matrix(dapi_img)
