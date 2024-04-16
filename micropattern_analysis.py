@@ -83,6 +83,16 @@ def create_dapi_img_mask_multiotsu(
     return img[dapi_img_num] > dapi_threshold
 
 
+def apply_multiotsu_to_dapi(
+        img,
+        dapi_img_num,
+        num_classes=4,
+        threshold_index=1
+):
+    img[dapi_img_num] = create_dapi_img_mask_multiotsu(img, dapi_img_num, num_classes, threshold_index)
+    return img
+
+
 def apply_img_mask(img, img_mask):
     return img * img_mask
 
