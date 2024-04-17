@@ -192,9 +192,24 @@ def apply_img_mask(img, img_mask):
     return img * img_mask
 
 
-def get_center_of_mass(img_mask, dapi_img):
-    properties = regionprops(img_mask.astype(int), dapi_img)
-    center_of_mass = np.array(properties[0].centroid).astype(int)
+def get_region_prop_from_channel(img_channel):
+    """
+    Explicit function: return region prop (single) from single (binary) labeled channel/image
+
+    :param img_channel:
+    :return:
+    """
+    return regionprops(np.array(img_channel > 0).astype(int))[0]
+
+
+def get_center_of_mass(prop):
+    """
+    Explicit function: return center of mass (centroid) from associated region prop
+
+    :param prop:
+    :return:
+    """
+    center_of_mass = np.array(prop.centroid).astype(int)
     return center_of_mass
 
 
@@ -211,6 +226,18 @@ def calculate_distances(cords, center_of_mass):
     return dist
 
 
+def get_distances(image_channel):
+    """
+    Implicit function: uses calculate_distances() with implicit inputs
+
+    :param image_channel:
+    :return:
+    """
+    cords = expand_coordinate_matrix(image_channel)
+    centroid = get_center_of_mass(get_region_prop_from_channel(image_channel))
+    return calculate_distances(cords, centroid)
+
+
 def generate_data_frame(cords, img, channel_names, **kwargs):
     channel_values_of_cords = get_channel_values_of_cords(img, len(channel_names))
     cords_grey_dict = {
@@ -225,6 +252,17 @@ def generate_data_frame(cords, img, channel_names, **kwargs):
     return df
 
 
+def image_mean_res(file):
+    img_props = iio.improps(file)
+    img_meta = iio.immeta(file)
+    mean_res = 1
+    if img_props.spacing:
+        mean_res = np.mean(1 / np.array(img_props.spacing))
+    elif img_meta["ScanInformation"]["SampleSpacing"]:
+        mean_res = img_meta["ScanInformation"]["SampleSpacing"]
+    return mean_res
+
+
 def get_channel_values_of_cords(img, dapi_channel_number):
     return np.transpose(img[0:dapi_channel_number].reshape((dapi_channel_number, img.shape[-1] * img.shape[-2])))
 
@@ -235,7 +273,9 @@ def group_distances(df, channel_names):
     return distance_intensities
 
 
-def scale_distances(df, mean_res):
+def scale_distances(df, mean_res=None, file=None):
+    if not mean_res and file:
+        mean_res = image_mean_res(file)
     df["Distances"] = df["Distances"] * mean_res
     return df
 
