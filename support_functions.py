@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import math
+
 from micropattern_analysis import *
 
 
@@ -37,3 +39,15 @@ def plot_all_channels(axes, img):
     for channel, ax in zip(img, axes.flat):
         ax.imshow(channel, cmap="grey")
         ax.axis("off")
+
+
+def plot_images(images, channel=0, fig_size=None):
+    if fig_size is None:
+        fig_size = (10, 10)
+    square = math.ceil(math.sqrt(len(images)))
+    fig, axes = plt.subplots(square, square, figsize=fig_size)
+    for i, (ax, img) in enumerate(zip(axes.flat, images)):
+        ax.imshow(img[channel], cmap="grey")
+        ax.set_title(f'Index: {i}')
+        ax.axis("off")
+    return fig, axes
