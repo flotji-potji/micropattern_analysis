@@ -51,3 +51,15 @@ def plot_images(images, channel=0, fig_size=None):
         ax.set_title(f'Index: {i}')
         ax.axis("off")
     return fig, axes
+
+
+def string_list_locations(array, phrase):
+    return [i for i, s in enumerate(array) if phrase in s]
+
+
+def get_items_from_index(array, indexes):
+    return list(map(array.__getitem__, indexes))
+
+
+def delete_from_list(array, indexes):
+    return [j for i, j in enumerate(array) if i not in indexes]
